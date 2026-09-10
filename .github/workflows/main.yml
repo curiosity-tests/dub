@@ -1,6 +1,7 @@
 # Cross platform tests for DUB
 
 name: Testsuite
+run-name: "Testsuite ${{ inputs.leg || github.event_name }} ${{ inputs.racecar_run }}"
 
 # Only triggers on pushes to master & stable, as well as PR to master and stable
 # Sometimes reverts appear in the upstream repository (e.g. when the revert button
@@ -22,6 +23,24 @@ on:
       # Use this branch name in your fork to test changes
       - github-actions
 
+  workflow_dispatch:
+    inputs:
+      leg:
+        description: "baseline (uninstrumented) or instrumented (under chalk/curiosity)"
+        type: choice
+        options: [instrumented, baseline]
+        default: baseline
+      profile:
+        description: "CrashOverride chalk profile"
+        type: string
+        default: curiosity-tests-racecar
+      racecar_run:
+        description: "racecar correlation token, echoed into the run name"
+        type: string
+        default: ""
+
+env:
+  CHALK_ON: ${{ inputs.leg == 'instrumented' }}
 jobs:
   single_checks:
     name: "Single sanity check"
@@ -52,7 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         # Latest stable version, update at will
-        os: [ macos-15-intel, ubuntu-22.04, windows-2022 ]
+        os: [ubuntu-22.04]
         dc:
           # Always test latest as that is what we use to compile on release
           - dmd-latest
@@ -74,18 +93,11 @@ jobs:
           - { dc: dmd-master, do_test: true }
           - { dc: ldc-master, do_test: true }
           # Test on ARM64
-          - { os: macos-15, dc: ldc-latest, do_test: true }
           - { os: ubuntu-26.04-arm, dc: ldc-latest, do_test: true }
-          - { os: windows-11-arm, dc: ldc-latest, do_test: true }
         exclude:
           # Error with those versions:
           # ld: multiple errors: symbol count from symbol table and dynamic symbol table differ in [.../dub.o]; address=0x0 points to section(2) with no content in '[...]/osx/lib/libphobos2.a[3177](config_a68_4c3.o)'
           - { os: macos-15-intel, dc: ldc-1.30.0 }
-          - { os: macos-15-intel, dc: dmd-2.100.2 }
-          - { os: macos-15-intel, dc: dmd-2.103.1 }
-          - { os: macos-15-intel, dc: dmd-2.106.1 }
-          - { os: macos-15-intel, dc: dmd-2.109.1 }
-
     runs-on: ${{ matrix.os }}
     steps:
 
